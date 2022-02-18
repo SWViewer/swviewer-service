@@ -105,3 +105,5 @@ dist
 /.idea/vcs.xml
 /.idea/swviewer-service.iml
 /.idea/modules.xml
+service/storage.js
+service/token.txt
