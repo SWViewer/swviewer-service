@@ -447,7 +447,7 @@ function customFilter(e, filter, nick, timeConnected) {
             (swmt.includes(e.wiki) && filter.swmt === 1 && (filter.isGlobal === true || filter.isGlobalModeAccess === true)) ||
             (filter.langWikis.includes(e.wiki) && (filter.isGlobal === true || filter.isGlobalModeAccess === true)) ||
             (lt300.includes(e.wiki) && filter.lt300 === 1 && (filter.isGlobal === true || filter.isGlobalModeAccess === true)));
-        return;
+
     }).catch(function(err) {
         logger.debug("customFilter promise error: " + err);
         logger.debug("customFilter promise error (nickname): " + nick);
@@ -545,7 +545,7 @@ function getParams(w) {
             '&token_proxy=' + token + '&username=' + encodeURIComponent(w.nickName).replace(/'/g, '%27');
         request(paramsurl, { json: true, headers: { "User-Agent": userAgent } }, (err, res) => {
             if (err) { resolve(false); return; }
-            if (typeof res == "undefined" || res === null || !res.hasOwnProperty("body")) { logger.debug("Get params error: " + paramsurl.replace(token, "")); resolve(false); return;};
+            if (typeof res == "undefined" || res === null || !res.hasOwnProperty("body")) { logger.debug("Get params error: " + paramsurl.replace(token, "")); resolve(false); return;}
             if (res.body.hasOwnProperty("error")) { resolve(false); return; }
 
             let filter = [];
