@@ -7,6 +7,7 @@ const WebSocket = require('ws');
 const log4js = require("log4js");
 const moment = require('moment');
 const NodeCache = require('node-cache');
+const { exec } = require('child_process');
 EventSource = require('eventsource');
 const ReconnectingEventSource = require('reconnecting-eventsource').default;
 
@@ -30,6 +31,7 @@ var compiled = ejs.compile(content);
 const swmt = exp.swmt;
 const lt300 = exp.lt300;
 const groupFilt = exp.groupFilt;
+const siteGroups = exp.siteGroups;
 const userAgent = exp.userAgent;
 const namespaces = exp.namespaces;
 const customSandBoxes = exp.customSandBoxes;
@@ -54,16 +56,51 @@ var admins = ["Iluvatar", "Ajbura", "1997kB"];
 // The Talk / Websocket
 
 const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    const streamClients = getClients(); const garbage = getGarbage(); const cached = getCached();
-    const memory = Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100;
-    const upTimeWSSend = new Date((moment().unix() - upTimeWS) * 1000).toISOString().substr(11, 8);
-    const upTimeSSESend = new Date((moment().unix() - upTimeSSE) * 1000).toISOString().substr(11, 8);
-    res.end(compiled({clients: streamClients, garbage: garbage, cache: cached, memory: memory, errors: errors,
-        upTimeWS: upTimeWSSend, upTimeSSE: upTimeSSESend, eventPerMin: eventPerMin, wikis: generalList.length,
-        globals: globals.length}));
+    if (req.url === "/git-pull" && typeof req.headers["x-github-event"] !== "undefined") {
+        execute("git pull").then(function(response) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            compiledScript = ejs.compile(response); res.end(compiledScript({}));
+        }).catch(function(response) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            compiledScript = ejs.compile(response); res.end(compiledScript({}));
+        });
+    } else if (req.url === "/restart" && typeof req.headers.auth !== "undefined" && req.headers.auth === token) {
+        execute("sh service/restart.sh").then(function(response) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            compiledScript = ejs.compile(response); res.end(compiledScript({}));
+        }).catch(function(response) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            compiledScript = ejs.compile(response); res.end(compiledScript({}));
+        });
+    } else {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        const streamClients = getClients(); const garbage = getGarbage(); const cached = getCached();
+        const memory = Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100;
+        const upTimeWSSend = new Date((moment().unix() - upTimeWS) * 1000).toISOString().substr(11, 8);
+        const upTimeSSESend = new Date((moment().unix() - upTimeSSE) * 1000).toISOString().substr(11, 8);
+        res.end(compiled({clients: streamClients, garbage: garbage, cache: cached, memory: memory, errors: errors,
+            upTimeWS: upTimeWSSend, upTimeSSE: upTimeSSESend, eventPerMin: eventPerMin, wikis: generalList.length,
+            globals: globals.length}));
+    }
 });
 server.listen(port, () => 'Server up');
+
+function execute(comm) {
+    return new Promise(function(resolve, reject){
+        exec(comm, function(err, stdout, stderr){
+            if (typeof error !== "undefined") {
+                reject(JSON.stringify('{"result": "error", "info": fatal error'));
+                return;
+            }
+            if (typeof stderr !== "undefined"){
+                if (comm === "git pull") logger.debug("Execute (git) error: " + stderr);
+                reject(JSON.stringify('{"result": "error", "info": ' + stderr));
+                return;
+            }
+            resolve(JSON.stringify('{"result": "success", "info": ' + stdout));
+        })
+    })
+}
 
 function getClients () {
     if (typeof wss !== "undefined")
@@ -159,8 +196,8 @@ wss.on('connection', function(ws, req) {
                             wss.clients.forEach(function(client) {
                                 client.send(JSON.stringify({"type": "command", "nickname": ws.nickName, "text": "/cache"}));
                             });
-                        }                                
-                            
+                        }
+
                     }
                 } else {
                     wss.clients.forEach(function(client) {
@@ -193,7 +230,7 @@ wss.on('connection', function(ws, req) {
                 if (client.readyState === WebSocket.OPEN)
                     client.send(JSON.stringify({"type": "disconnected", "clients": getUsersList(), "client": ws.nickName}));
             });
-            if (wss.clients.size === 0) { logger.debug("Stream closed (1)"); source.close(); } else getGeneralList();
+            if (wss.clients.size === 0) { logger.debug("Stream closed (1)"); if (typeof source !== "undefined") source.close(); } else getGeneralList();
         });
     }).catch(function(e) {
         logger.debug("getParams promise error");
@@ -408,6 +445,7 @@ function customFilter(e, filter, nick, timeConnected) {
         resolve((filter.wikis.split(',').includes(e.wiki)) ||
             (filter.local_wikis.split(',').includes(e.wiki) && filter.isGlobal === false) ||
             (swmt.includes(e.wiki) && filter.swmt === 1 && (filter.isGlobal === true || filter.isGlobalModeAccess === true)) ||
+            (filter.langWikis.includes(e.wiki) && (filter.isGlobal === true || filter.isGlobalModeAccess === true)) ||
             (lt300.includes(e.wiki) && filter.lt300 === 1 && (filter.isGlobal === true || filter.isGlobalModeAccess === true)));
         return;
     }).catch(function(err) {
@@ -503,9 +541,11 @@ function normalizeArray(e) {
 
 function getParams(w) {
     return new Promise(resolve => {
-        request('https://swviewer.toolforge.org/php/getFilt.php?preset_name=' + encodeURIComponent(w.preset).replace(/'/g, '%27') +
-            '&token_proxy=' + token + '&username=' + encodeURIComponent(w.nickName).replace(/'/g, '%27'), { json: true, headers: { "User-Agent": userAgent } }, (err, res) => {
+        let paramsurl = 'https://swviewer.toolforge.org/php/getFilt.php?preset_name=' + encodeURIComponent(w.preset).replace(/'/g, '%27') +
+            '&token_proxy=' + token + '&username=' + encodeURIComponent(w.nickName).replace(/'/g, '%27');
+        request(paramsurl, { json: true, headers: { "User-Agent": userAgent } }, (err, res) => {
             if (err) { resolve(false); return; }
+            if (typeof res == "undefined" || res === null || !res.hasOwnProperty("body")) { logger.debug("Get params error: " + paramsurl.replace(token, "")); resolve(false); return;};
             if (res.body.hasOwnProperty("error")) { resolve(false); return; }
 
             let filter = [];
@@ -525,6 +565,22 @@ function getParams(w) {
             filter.local_wikis = (res.body.local_wikis !== null) ? res.body.local_wikis : "";
             filter.isGlobalModeAccess = (parseInt(res.body.isGlobalModeAccess) === 1);
             filter.isGlobal = (parseInt(res.body.isGlobal) === 1);
+            filter.langWikis = [];
+            if (res.body.wikilangs !== null && res.body.wikilangs !== "") {
+                let l = res.body.wikilangs.split(",");
+                l.forEach(function (el) { siteGroups.forEach(function(el2) {
+                    if (el !== "") {
+                        filter.langWikis.push(el + el2);
+                        if (el === "en") {
+                            filter.langWikis.push("metawiki");
+                            filter.langWikis.push("wikidatawiki"); filter.langWikis.push("commonswiki");
+                            filter.langWikis.push("mediawikiwiki"); filter.langWikis.push("incubatorwiki");
+                            filter.langWikis.push("wikimaniawiki"); filter.langWikis.push("foundationwiki");
+
+                        }
+                    }
+                }); });
+            }
 
             resolve(filter);
         });
@@ -545,6 +601,10 @@ function getGeneralList() {
                 lt300Check = true;
 
             ws.filt.wikis.split(',').forEach(function (el) {
+                if (!generalListPrepare.includes(el) && !ws.filt.wikiwhitelist.split(',').includes(el)) generalListPrepare.push(el);
+            });
+
+            ws.filt.langWikis.forEach(function (el) {
                 if (!generalListPrepare.includes(el) && !ws.filt.wikiwhitelist.split(',').includes(el)) generalListPrepare.push(el);
             });
 
@@ -578,3 +638,16 @@ setInterval(function() {
     eventPerMin = eventPerMinPrepare;
     eventPerMinPrepare = 0;
 }, 60000);
+
+function streamCheck() {
+    if (wss.clients.size === 0 && source.readyState === 2) {
+        logger.debug("StreamCheck run");
+        SSEStart();
+    }
+}
+setInterval(streamCheck, 20000);
+
+function CheckClients() {
+    logger.debug("Clients: " + wss.clients.size)
+}
+setInterval(CheckClients, 30000);
