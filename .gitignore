@@ -102,8 +102,11 @@ dist
 
 # TernJS port file
 .tern-port
+.idea/
 /.idea/vcs.xml
 /.idea/swviewer-service.iml
 /.idea/modules.xml
 service/storage.js
 service/token.txt
+/.idea/.gitignore
+/package-lock.json

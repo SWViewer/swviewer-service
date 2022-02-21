@@ -7,8 +7,8 @@ const WebSocket = require('ws');
 const log4js = require("log4js");
 const moment = require('moment');
 const NodeCache = require('node-cache');
-const { exec } = require('child_process');
 EventSource = require('eventsource');
+const { exec } = require('child_process');
 const ReconnectingEventSource = require('reconnecting-eventsource').default;
 
 // Logging configure
@@ -50,8 +50,10 @@ var eventPerMin = "-";
 var eventPerMinPrepare = 0;
 var upTimeWS = moment().unix();
 var upTimeSSE = moment().unix();
+var checkStreamOne = moment().unix();
+var checkStreamtwo = moment().unix();
 const port = +(process.env.PORT || 9030);
-var admins = ["Iluvatar", "Ajbura", "1997kB"];
+const admins = ["Iluvatar", "Ajbura", "1997kB"];
 
 // The Talk / Websocket
 
@@ -59,25 +61,25 @@ const server = http.createServer((req, res) => {
     if (req.url === "/git-pull" && typeof req.headers["x-github-event"] !== "undefined") {
         execute("git pull").then(function(response) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            compiledScript = ejs.compile(response); res.end(compiledScript({}));
+            let compiledScript = ejs.compile(response); res.end(compiledScript({}));
         }).catch(function(response) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            compiledScript = ejs.compile(response); res.end(compiledScript({}));
+            let compiledScript = ejs.compile(response); res.end(compiledScript({}));
         });
     } else if (req.url === "/restart" && typeof req.headers.auth !== "undefined" && req.headers.auth === token) {
         execute("sh service/restart.sh").then(function(response) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            compiledScript = ejs.compile(response); res.end(compiledScript({}));
+            let compiledScript = ejs.compile(response); res.end(compiledScript({}));
         }).catch(function(response) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            compiledScript = ejs.compile(response); res.end(compiledScript({}));
+            let compiledScript = ejs.compile(response); res.end(compiledScript({}));
         });
     } else {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         const streamClients = getClients(); const garbage = getGarbage(); const cached = getCached();
         const memory = Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100;
-        const upTimeWSSend = new Date((moment().unix() - upTimeWS) * 1000).toISOString().substr(11, 8);
-        const upTimeSSESend = new Date((moment().unix() - upTimeSSE) * 1000).toISOString().substr(11, 8);
+        const upTimeWSSend = new Date((moment().unix() - upTimeWS) * 1000).toISOString().substring(11, 19);
+        const upTimeSSESend = new Date((moment().unix() - upTimeSSE) * 1000).toISOString().substring(11, 19);
         res.end(compiled({clients: streamClients, garbage: garbage, cache: cached, memory: memory, errors: errors,
             upTimeWS: upTimeWSSend, upTimeSSE: upTimeSSESend, eventPerMin: eventPerMin, wikis: generalList.length,
             globals: globals.length}));
@@ -88,7 +90,7 @@ server.listen(port, () => 'Server up');
 function execute(comm) {
     return new Promise(function(resolve, reject){
         exec(comm, function(err, stdout, stderr){
-            if (typeof error !== "undefined") {
+            if (typeof err !== "undefined") {
                 reject(JSON.stringify('{"result": "error", "info": fatal error'));
                 return;
             }
@@ -309,6 +311,7 @@ function SSEStart() {
             e = JSON.parse(e.data);
             if (!streamFilter(e)) return;
             e.time = Date.now();
+            checkStreamWork(e);
             const uniqWiki = (e.hasOwnProperty("wiki")) ? e.wiki : e.database;
             const uniqRev = (e.hasOwnProperty("rev_id")) ? e.rev_id : e.revision.new;
             const uniqID = String(e.meta.request_id) + String(uniqWiki) + String(uniqRev);
@@ -375,8 +378,8 @@ async function getORES(wiki, new_id, model) {
             if (res.body[wiki].scores[new_id][model] === undefined) { resolve(false); return; }
             if (res.body[wiki].scores[new_id][model].error !== undefined) { resolve(false); return; }
             if (res.body[wiki].scores[new_id][model].score === undefined) { resolve(false); return; }
-            const damage = res.body[wiki].scores[new_id][model].score.probability.true;
-            const damagePer = parseInt(damage * 100);
+            const damage = parseFloat(res.body[wiki].scores[new_id][model].score.probability.true) * 100;
+            const damagePer = parseInt(damage.toString());
             resolve({score: damagePer, color: `hsl(0, ${damagePer}%, 56%)`});
         });
     }).catch(function(err) {
@@ -641,11 +644,23 @@ setInterval(function() {
 
 function streamCheck() {
     if (wss.clients.size === 0 && source.readyState === 2) {
-        logger.debug("StreamCheck run");
+        logger.debug("StreamCheck: Starting...");
         SSEStart();
+    }
+
+    if (checkStreamOne <= moment().unix() - 300 || checkStreamtwo <= moment().unix() - 300) {
+        logger.debug("StreamCheck: Restarting...")
+        execute("sh service/restart.sh").then();
     }
 }
 setInterval(streamCheck, 20000);
+
+function checkStreamWork(e) {
+    if (e.hasOwnProperty("wiki") && e.wiki === "enwiki")
+        checkStreamOne =  moment().unix();
+    if (e.hasOwnProperty("database") && e.database === "enwiki")
+        checkStreamtwo = moment().unix();
+}
 
 function CheckClients() {
     logger.debug("Clients: " + wss.clients.size)
