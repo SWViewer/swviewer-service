@@ -52,6 +52,7 @@ var upTimeWS = moment().unix();
 var upTimeSSE = moment().unix();
 var checkStreamOne = moment().unix();
 var checkStreamtwo = moment().unix();
+var checkWS = moment().unix();
 const port = +(process.env.PORT || 9030);
 const admins = ["Iluvatar", "Ajbura", "1997kB"];
 
@@ -333,8 +334,10 @@ function SSEStart() {
                         wss.clients.forEach(function (ws) {
                             if (ws.readyState === WebSocket.OPEN && ws.pause !== true && ws.hasOwnProperty("filt"))
                                 customFilter(result, ws.filt, ws.nickName, ws.timeConnected).then(function(res) {
-                                    if (res !== undefined && res !== null && res)
+                                    if (res !== undefined && res !== null && res) {
+                                        checkWS = moment().unix();
                                         ws.send(JSON.stringify({"type": "edit", "data": result}));
+                                    }
                                 });
                         });
                     });
@@ -649,7 +652,12 @@ function streamCheck() {
     }
 
     if (checkStreamOne <= moment().unix() - 300 || checkStreamtwo <= moment().unix() - 300) {
-        logger.debug("StreamCheck: Restarting...")
+        logger.debug("StreamCheck: Restarting [1]...")
+        execute("sh service/restart.sh").then();
+    }
+
+    if (checkWS <= moment().unix() - 1200 && generalList.length >= 100 && was.clients.size > 0) {
+        logger.debug("StreamCheck: Restarting [2]...")
         execute("sh service/restart.sh").then();
     }
 }
@@ -663,6 +671,6 @@ function checkStreamWork(e) {
 }
 
 function CheckClients() {
-    logger.debug("Clients: " + wss.clients.size)
+    logger.debug("Clients: " + wss.clients.size + "; generalList: " + generalList.length)
 }
 setInterval(CheckClients, 30000);
