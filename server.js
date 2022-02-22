@@ -646,7 +646,7 @@ setInterval(function() {
 }, 60000);
 
 function streamCheck() {
-    if (wss.clients.size === 0 && source.readyState === 2) {
+    if (wss.clients.size === 0 && typeof source !== "undefined" && source.readyState === 2) {
         logger.debug("StreamCheck: Starting...");
         SSEStart();
     }
