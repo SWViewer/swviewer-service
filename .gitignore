@@ -110,3 +110,5 @@ service/storage.js
 service/token.txt
 /.idea/.gitignore
 /package-lock.json
+test/
+Other versions/

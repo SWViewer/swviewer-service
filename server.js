@@ -51,7 +51,7 @@ var eventPerMinPrepare = 0;
 var upTimeWS = moment().unix();
 var upTimeSSE = moment().unix();
 var checkStreamOne = moment().unix();
-var checkStreamtwo = moment().unix();
+var checkStreamTwo = moment().unix();
 var checkWS = moment().unix();
 const port = +(process.env.PORT || 9030);
 const admins = ["Iluvatar", "Ajbura", "1997kB"];
@@ -233,7 +233,8 @@ wss.on('connection', function(ws, req) {
                 if (client.readyState === WebSocket.OPEN)
                     client.send(JSON.stringify({"type": "disconnected", "clients": getUsersList(), "client": ws.nickName}));
             });
-            if (wss.clients.size === 0) { logger.debug("Stream closed (1)"); if (typeof source !== "undefined") source.close(); } else getGeneralList();
+            getGeneralList();
+            if (wss.clients.size === 0) { logger.debug("Stream closed (1)"); CheckClients(); logger.debug("*****"); if (typeof source !== "undefined") source.close(); }
         });
     }).catch(function(e) {
         logger.debug("getParams promise error");
@@ -307,12 +308,12 @@ function SSEStart() {
     source = new ReconnectingEventSource('https://stream.wikimedia.org/v2/stream/recentchange,revision-create');
     source.onmessage = function(e) {
         try {
-            if (wss.clients.size === 0) { logger.debug("Stream closed (2)"); source.close(); return; }
+            if (wss.clients.size === 0 && typeof source !== "undefined" && source.readyState !== 2) { logger.debug("Stream closed (2)"); source.close(); return; }
             if (e.type !== "message") return;
             e = JSON.parse(e.data);
+            checkStreamWork(e);
             if (!streamFilter(e)) return;
             e.time = Date.now();
-            checkStreamWork(e);
             const uniqWiki = (e.hasOwnProperty("wiki")) ? e.wiki : e.database;
             const uniqRev = (e.hasOwnProperty("rev_id")) ? e.rev_id : e.revision.new;
             const uniqID = String(e.meta.request_id) + String(uniqWiki) + String(uniqRev);
@@ -577,13 +578,30 @@ function getParams(w) {
                 l.forEach(function (el) { siteGroups.forEach(function(el2) {
                     if (el !== "") {
                         filter.langWikis.push(el + el2);
-                        if (el === "en") {
-                            filter.langWikis.push("metawiki");
-                            filter.langWikis.push("wikidatawiki"); filter.langWikis.push("commonswiki");
-                            filter.langWikis.push("mediawikiwiki"); filter.langWikis.push("incubatorwiki");
-                            filter.langWikis.push("wikimaniawiki"); filter.langWikis.push("foundationwiki");
-
-                        }
+                        if (el === "en")
+                           addWikisToList(["simplewiki", "simplewiktionary", "wikidatawiki", "betawikiversity", "bewikimedia", "commonswiki", "foundationwiki", "incubatorwiki", "mediawikiwiki", "metawiki", "nycwikimedia", "outreachwiki", "sourceswiki", "cawikimedia", "labswiki", "wikimaniawiki", "specieswiki"], filter.langWikis);
+                        if (el === "es")
+                           addWikisToList(["arwikimedia", "cowikimedia", "mxwikimedia"], filter.langWikis);
+                        if (el === "yue")
+                           addWikisToList(["zh_yuewikimedia"], filter.langWikis);
+                        if (el === "pt")
+                           addWikisToList(["brwikimedia"], filter.langWikis);
+                        if (el === "uk")
+                           addWikisToList(["uawikimedia"], filter.langWikis);
+                        if (el === "bn")
+                            addWikisToList(["bdwikimedia"], filter.langWikis);
+                        if (el === "da")
+                           addWikisToList(["dkwikimedia"], filter.langWikis);
+                        if (el === "sv")
+                           addWikisToList(["sewikimedia"], filter.langWikis);
+                        if (el === "br")
+                            removeWikiFromList("brwikimedia", filter.langWikis);
+                        if (el === "co")
+                            removeWikiFromList("cowikimedia", filter.langWikis);
+                        if (el === "ar")
+                            removeWikiFromList("arwikimedia", filter.langWikis);
+                        if (el === "mx")
+                            removeWikiFromList("mxwikimedia", filter.langWikis);
                     }
                 }); });
             }
@@ -593,6 +611,20 @@ function getParams(w) {
     }).catch(function(err) {
         logger.debug("getParams promise error: " + err);
     });
+}
+
+function removeWikiFromList(wikiForRemove, fWikis) {
+    fWikis = fWikis.filter(function(item) {
+        return item !== wikiForRemove;
+    });
+    return fWikis;
+}
+
+function addWikisToList(wikisForAdd, fWikis) {
+    wikisForAdd.forEach(function(wfa) {
+        fWikis.push(wfa);
+    });
+    return fWikis;
 }
 
 function getGeneralList() {
@@ -646,19 +678,21 @@ setInterval(function() {
 }, 60000);
 
 function streamCheck() {
-    if (wss.clients.size === 0 && typeof source !== "undefined" && source.readyState === 2) {
+    if (wss.clients.size !== 0 && typeof source !== "undefined" && source.readyState === 2) {
         logger.debug("StreamCheck: Starting...");
         SSEStart();
     }
 
-    if (checkStreamOne <= moment().unix() - 300 || checkStreamtwo <= moment().unix() - 300) {
-        logger.debug("StreamCheck: Restarting [1]...")
+    if (wss.clients.size !== 0 && (checkStreamOne <= moment().unix() - 300 || checkStreamTwo <= moment().unix() - 300)) {
+        logger.debug("StreamCheck: Restarting [1]... One: " + checkStreamOne + "; Two: " + checkStreamTwo + "; Now: " +  moment().unix())
         execute("sh service/restart.sh").then();
+        process.exit(0);
     }
 
-    if (checkWS <= moment().unix() - 1200 && generalList.length >= 100 && was.clients.size > 0) {
+    if (wss.clients.size !== 0 && checkWS <= moment().unix() - 1200 && generalList.length >= 100) {
         logger.debug("StreamCheck: Restarting [2]...")
         execute("sh service/restart.sh").then();
+        process.exit(0);
     }
 }
 setInterval(streamCheck, 20000);
@@ -667,7 +701,7 @@ function checkStreamWork(e) {
     if (e.hasOwnProperty("wiki") && e.wiki === "enwiki")
         checkStreamOne =  moment().unix();
     if (e.hasOwnProperty("database") && e.database === "enwiki")
-        checkStreamtwo = moment().unix();
+        checkStreamTwo = moment().unix();
 }
 
 function CheckClients() {
