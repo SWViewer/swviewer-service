@@ -49,7 +49,7 @@ exports.swmt = ["abwiki", "afwikibooks", "afwikiquote", "akwiki", "amwiktionary"
     "rowiktionary", "sdwiki", "specieswiki", "srwiktionary", "svwiktionary", "trwikisource", "trwiktionary", "viwiktionary", "wawiki", "xmfwiki", "yiwiki", "zhwikinews", "zhwikisource", "zh_min_nanwiktionary",
     "arzwiki", "bawiki", "bclwiki", "bnwiktionary", "cewiki", "cywiktionary", "dewikiversity", "euwiki", "euwiktionary", "fawikisource", "frrwiki", "fywiktionary", "glwiki", "hywikisource", "knwiktionary",
     "kowiktionary", "kywiktionary", "lowiktionary", "ltwiki", "minwiki", "mlwikisource", "mswiki", "mywiki", "mywiktionary", "ocwiktionary", "omwiktionary", "orwiki", "pawiki", "pawiktionary", "shwiktionary",
-    "slwikisource", "sqwiktionary", "tawiktionary", "tlwiktionary", "ukwikisource", "urwiktionary", "uzwiktionary", "wawiktionary", "foundationwiki"]
+    "slwikisource", "sqwiktionary", "tawiktionary", "tlwiktionary", "ukwikisource", "urwiktionary", "uzwiktionary", "wawiktionary", "foundationwiki", "guwwiki", "kcgwiki", "shnwikiboyage"]
 exports.lt300 = ["cebwiki", "dewikivoyage", "emlwiki", "enwikinews", "frwikisource", "itwiktionary", "itwikibooks", "itwikinews", "itwikiquote", "itwikisource", "itwikivoyage",
     "jawiktionary", "jawikibooks", "jawikisource", "lijwiki", "mgwiktionary", "mkwiki", "mrwiki", "napwiki", "nnwiki", "pmswiki", "scnwiki", "scnwiktionary", "shwiki", "simplewiktionary",
     "vecwiki", "warwiki", "zhwiktionary", "azbwiki", "napwikisource", "shnwiktionary", "avkwiki", "skrwiktionary"];
