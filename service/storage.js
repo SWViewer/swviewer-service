@@ -45,7 +45,7 @@ exports.swmt = ["abwiki", "afwikibooks", "afwikiquote", "akwiki", "amwiktionary"
     "frwikibooks", "frwikiversity", "gdwiki", "guwikisource", "hiwiki", "hrwiki", "incubatorwiki", "kuwiktionary", "nowiktionary", "nvwiki", "oswiki", "plwikisource", "plwikivoyage", "rowikisource",
     "ruwikinews", "ruwiktionary", "sahwiki", "slwiktionary", "srwikinews", "suwiki", "svwikisource", "swwiki", "szlwiki", "tewikisource", "tewiktionary", "thwiki", "tlwiki", "ukwiktionary", "sourceswiki",
     "wuuwiki", "acewiki", "azwiktionary", "bewiki", "bgwiki", "bgwiktionary", "bpywiki", "bugwiki", "cdowiki", "ckbwiki", "cswikisource", "dawiktionary", "elwiktionary", "eowiktionary", "etwiktionary",
-    "fowiki", "gorwiki", "hawiki", "hywiki", "idwiktionary", "ilowiki", "iowiktionary", "iswiki", "jvwiktionary", "liwiktionary", "mhrwiki", "mnwiki", "orwiktionary", "plwiktionary", "pnbwiki", "pswiktionary",
+    "fowiki", "gorwiki", "blkwiki", "hawiki", "hywiki", "idwiktionary", "ilowiki", "iowiktionary", "iswiki", "jvwiktionary", "liwiktionary", "mhrwiki", "mnwiki", "orwiktionary", "plwiktionary", "pnbwiki", "pswiktionary",
     "rowiktionary", "sdwiki", "specieswiki", "srwiktionary", "svwiktionary", "trwikisource", "trwiktionary", "viwiktionary", "wawiki", "xmfwiki", "yiwiki", "zhwikinews", "zhwikisource", "zh_min_nanwiktionary",
     "arzwiki", "bawiki", "bclwiki", "bnwiktionary", "cewiki", "cywiktionary", "dewikiversity", "euwiki", "euwiktionary", "fawikisource", "frrwiki", "fywiktionary", "glwiki", "hywikisource", "knwiktionary",
     "kowiktionary", "kywiktionary", "lowiktionary", "ltwiki", "minwiki", "mlwikisource", "mswiki", "mywiki", "mywiktionary", "ocwiktionary", "omwiktionary", "orwiki", "pawiki", "pawiktionary", "shwiktionary",
