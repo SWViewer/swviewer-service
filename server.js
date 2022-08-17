@@ -438,7 +438,7 @@ function customFilter(e, filter, nick, timeConnected) {
         if (filter.registered === 0 && e.performer.user_is_anon === false) { resolve(false); return; }
         if (filter.new === 0 && e.is_new === true) { resolve(false); return; }
         if (filter.onlynew === 1 && e.is_new === false) { resolve(false); return; }
-        if (e.performer.user_is_anon === false && e.performer.user_registration_dt === null && filter.edits <= e.performer.user_edit_count) { resolve(false); return; }
+        if (e.performer.user_is_anon === false && !e.performer.hasOwnProperty('user_registration_dt') && filter.edits <= e.performer.user_edit_count) { resolve(false); return; }
         if (!filter.namespaces.split(',').includes(e.namespace.toString()) && filter.namespaces.length !== 0) { resolve(false); return; }
         if (filter.wikiwhitelist.split(',').includes(e.wiki)) { resolve(false); return; }
         if (filter.userwhitelist.split(',').includes(e.performer.user_text)) { resolve(false); return; }

@@ -1,4 +1,4 @@
-exports.swmt = ["abwiki", "afwikibooks", "afwikiquote", "akwiki", "amwiktionary", "anwiktionary", "angwiki", "angwiktionary", "arwikibooks", "arwikinews", "arwikiquote", "arwikiversity",
+fix exports.swmt = ["abwiki", "afwikibooks", "afwikiquote", "akwiki", "amwiktionary", "anwiktionary", "angwiki", "angwiktionary", "arwikibooks", "arwikinews", "arwikiquote", "arwikiversity",
     "arcwiki", "aswiki", "avwiki", "aywiki", "aywiktionary", "azwikibooks", "azwikiquote", "azwikisource", "bawikibooks", "bewiktionary", "bewikibooks", "bewikiquote", "bewikisource",
     "bgwikibooks", "bgwikiquote", "bgwikisource", "bhwiki", "biwiki", "bjnwiki", "bmwiki", "bnwikibooks", "bowiki", "brwikiquote", "brwikisource", "bswiktionary", "bswikibooks", "bswikinews",
     "bswikiquote", "bswikisource", "bxrwiki", "cawikibooks", "cawikinews", "cawikiquote", "cawikisource", "cbk_zamwiki", "chwiki", "chrwiki", "chrwiktionary", "chywiki", "cowiki",
