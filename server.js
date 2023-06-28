@@ -37,7 +37,9 @@ const namespaces = exp.namespaces;
 const customSandBoxes = exp.customSandBoxes;
 
 const cacheCVN = new NodeCache({ "stdTTL": 18000 }); // 5 h
-const token = fs.readFileSync('service/token.txt', 'utf8');
+const tokens = fs.readFileSync('service/token.txt', 'utf8').split("|");
+const tomen = tokens[0];
+const bearerToken = tokens[1];
 
 var source;
 var errors = 0;
