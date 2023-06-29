@@ -33,9 +33,10 @@ const lt300 = exp.lt300;
 const LWList = exp.LWList;
 const ORESList = exp.ORESList;
 const groupFilt = exp.groupFilt;
-const siteGroups = exp.siteGroups;
 const userAgent = exp.userAgent;
 const namespaces = exp.namespaces;
+const siteGroups = exp.siteGroups;
+const LWListAgnostic = exp.LWListAgnostic;
 const customSandBoxes = exp.customSandBoxes;
 
 const cacheCVN = new NodeCache({ "stdTTL": 18000 }); // 5 h
@@ -329,7 +330,7 @@ function SSEStart() {
                     if (res === undefined) res = null;
                     result.wikidata_title = res;
                     eventPerMinPrepare++;
-                        getLWScores(result.wiki, result.new_id, result.namespace, result.domain).then(function(res) {
+                    getLWScores(result.wiki, result.new_id, result.namespace, result.domain, result.is_new).then(function(res) {
                         if (res === undefined || res === false) res = null;
                         result.ORES = res;
                         wss.clients.forEach(function (ws) {
@@ -363,30 +364,39 @@ function getModel(oresListModels, lwListModels, modelWiki, modelNamespace, model
     if (modelNamespace === 0 && modelDomain.includes('.wikipedia.org')) {
         // if (wiki === "wikidatawiki") return "revertrisk-wikidata";
         if (lwListModels.includes(modelWiki.slice(0, -4))) return "revertrisk-multilingual" + "|" + "" + "|" + "LW";
-        else return "revertrisk-language-agnostic" + "|" + "" + "|" + "LW";;
+        else if (LWListAgnostic.includes(modelWiki.slice(0, -4))) return "revertrisk-language-agnostic" + "|" + "" + "|" + "LW";
+        else return false;
     } else {
-        if (!modelWiki.includes('.wikipedia.org') && !modelDomain.includes('wikidata.org')) modelName = modelWiki + 'wiki'; else modelName = modelWiki;
+        let modelName = modelWiki;
+        if (!modelDomain.includes('.wikipedia.org') && !modelDomain.includes('wikidata.org')) modelName = modelWiki + 'wiki';
         if (oresListModels.damaging.includes(modelWiki)) return modelName + "-damaging" + "|" + modelName + "|" + "ORES";
         else if (oresListModels.reverted.includes(modelWiki)) return modelName + "-reverted" + "|" + modelName + "|" + "ORES";
         else return false;
     }
 }
 
-async function getLWScores(wiki, new_id, lwNamespace, lwDomain) {
+async function getLWScores(wiki, new_id, lwNamespace, lwDomain, lwIsNew) {
+    wiki = wiki.replace('_', '-');
     return new Promise(resolve => {
+        if (lwIsNew) { resolve(false); return; }
         let modelInfo = getModel(ORESList, LWList, wiki, lwNamespace, lwDomain);
         if (modelInfo === false) { resolve(false); return; }
         modelInfo = modelInfo.split("|");
         let model = modelInfo[0]; const modelName = modelInfo[1]; const modelType = modelInfo[2];
         const lwURL = 'https://api.wikimedia.org/service/lw/inference/v1/models/' + model + ':predict';
+        const lwBody = (modelType === "ORES") ? {"rev_id": new_id} : {"lang": wiki.slice(0, -4), "rev_id": new_id};
         try {
             lwPerHourPrepare++;
             request.post({
                 headers: {"User-Agent": "userAgent", "Authorization": "Bearer " + bearerToken},
-                url: lwURL, timeout: 5000, body: {"lang": wiki.slice(0, -4), "rev_id": new_id}, json: true
+                url: lwURL, timeout: 60000, body: lwBody, json: true
             }, (err, res) => {
                 if (err) { resolve(false); return; }
-                if (res.body.hasOwnProperty("error")) { resolve(false); return; }
+                if (res.body.hasOwnProperty("error")) {
+                    logger.debug(res.body);
+                    logger.debug(model, wiki, new_id, lwNamespace);
+                    resolve(false); return;
+                }
                 let damage;
                 if (modelType === "LW") {
                     if (!res.body.hasOwnProperty("output")) { resolve(false); return; }
@@ -408,7 +418,6 @@ async function getLWScores(wiki, new_id, lwNamespace, lwDomain) {
         } catch { logger.debug("getLW promise error [2]."); resolve(false); }
     }).catch(function(err) {
         logger.debug("getLW promise error [2]: " + err);
-        resolve(false);
     });
 }
 
