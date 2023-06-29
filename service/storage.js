@@ -65,5 +65,11 @@ exports.customSandBoxes = {
         "Property:P1106", "Property:P1450", "Property:P2368", "Property:P2535", "Property:P2536", "Property:P4047", "Property:P5188", "Property:P5189", "Property:P6604",
         "Lexeme:L123", "Lexeme:L1234", "Q17339402", "Q85408509", "Q85409163", "Q16943273", "Q85409446", "Q85409596", "Q85409310", "Q17566023", "Q17578745", "Q85408938"]
 };
+exports.LWList = ['ka', 'lv', 'ta', 'ur', 'eo', 'lt', 'sl', 'hy', 'hr', 'sk', 'eu', 'et', 'ms', 'az', 'da', 'bg', 'sr', 'ro', 'el', 'th', 'bn', 'no', 'hi', 'ca', 'hu', 'ko', 'fi', 'vi', 'uz', 'sv', 'cs', 'he', 'id', 'tr', 'uk', 'nl', 'pl', 'ar', 'fa', 'it', 'zh', 'ru', 'es', 'ja', 'de', 'fr', 'en'];
+exports.ORESList = {
+    'damaging': ['eswikibooks', 'eswikiquote', 'wikidatawiki', 'arwiki', 'bswiki', 'cawiki', 'cswiki', 'dewiki', 'enwiki', 'eswiki', 'etwiki', 'fawiki', 'fiwiki', 'frwiki', 'hiwiki',
+        'hewiki', 'huwiki', 'itwiki', 'jawiki', 'kowiki', 'lvwiki', 'nlwiki', 'nowiki', 'plwiki', 'ptwiki', 'rowiki', 'ruwiki', 'sqwiki', 'srwiki', 'svwiki', 'trwiki', 'ukwiki', 'zhwiki'], 
+    'reverted': ['enwiktionary', 'bnwiki', 'elwiki', 'glwiki', 'hrwiki', 'idwiki', 'iswiki', 'tawiki', 'viwiki']
+};
 exports.namespaces = ["<font color='green'>Main</font>", "<font color='tomato'>Talk</font>", "<font color='tomato'>User</font>", "<font color='tomato'>User talk</font>", "<font color='orange'>Project</font>", "<font color='tomato'>Project talk</font>", "<font color='orange'>File</font>", "<font color='tomato'>File talk</font>", "<font color='tomato'>MediaWiki</font>", "<font color='tomato'>MediaWiki talk</font>", "<font color='orange'>Template</font>", "<font color='tomato'>Template talk</font>", "<font color='orange'>Help</font>", "<font color='tomato'>Help talk</font>", "<font color='orange'>Category</font>", "<font color='tomato'>Category talk</font>"];
 exports.userAgent = "SWViewer/1.4+; swviewer@tools.wmflabs.org; SSE-proxy, TheTalk; NodeJS: request";
