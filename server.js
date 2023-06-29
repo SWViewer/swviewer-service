@@ -30,6 +30,8 @@ var compiled = ejs.compile(content);
 
 const swmt = exp.swmt;
 const lt300 = exp.lt300;
+const LWList = exp.LWList;
+const ORESList = exp.ORESList;
 const groupFilt = exp.groupFilt;
 const siteGroups = exp.siteGroups;
 const userAgent = exp.userAgent;
@@ -45,10 +47,11 @@ var source;
 var errors = 0;
 var globals = [];
 var storage = [];
+var lwPerHour = "-";
 var generalList = [];
 var sandboxlist = [];
-var ORESList = null;
 var eventPerMin = "-";
+var lwPerHourPrepare = 0;
 var eventPerMinPrepare = 0;
 var upTimeWS = moment().unix();
 var upTimeSSE = moment().unix();
@@ -84,7 +87,7 @@ const server = http.createServer((req, res) => {
         const upTimeWSSend = new Date((moment().unix() - upTimeWS) * 1000).toISOString().substring(11, 19);
         const upTimeSSESend = new Date((moment().unix() - upTimeSSE) * 1000).toISOString().substring(11, 19);
         res.end(compiled({clients: streamClients, garbage: garbage, cache: cached, memory: memory, errors: errors,
-            upTimeWS: upTimeWSSend, upTimeSSE: upTimeSSESend, eventPerMin: eventPerMin, wikis: generalList.length,
+            upTimeWS: upTimeWSSend, upTimeSSE: upTimeSSESend, eventPerMin: eventPerMin, lwPerHour: lwPerHour, wikis: generalList.length,
             globals: globals.length}));
     }
 });
@@ -265,11 +268,6 @@ function getUsersList() {
 SSE proxy
 */
 
-request('https://ores.wikimedia.org/v3/scores', { json: true, headers: { "User-Agent": userAgent } }, (err, res) => {
-    if (err) return false;
-    ORESList = res.body;
-});
-
 getSandboxes();
 getGlobals();
 
@@ -331,7 +329,7 @@ function SSEStart() {
                     if (res === undefined) res = null;
                     result.wikidata_title = res;
                     eventPerMinPrepare++;
-                    getORES(result.wiki, result.new_id, getModel(ORESList, result.wiki)).then(function(res) {
+                        getLWScores(result.wiki, result.new_id, result.namespace, result.domain).then(function(res) {
                         if (res === undefined || res === false) res = null;
                         result.ORES = res;
                         wss.clients.forEach(function (ws) {
@@ -361,35 +359,56 @@ function SSEStart() {
     };
 }
 
-function getModel(olist, wiki){
-    if (olist === null) return false;
-    if (Object.keys(olist).length === 0) return false;
-    if (Object.keys(olist).find(oresWiki => oresWiki === wiki) === undefined) return false;
-    if (olist[wiki].models.damaging !== undefined) return 'damaging';
-    else if (olist[wiki].models.reverted !== undefined) return 'reverted';
-    else return false;
+function getModel(oresListModels, lwListModels, modelWiki, modelNamespace, modelDomain) {
+    if (modelNamespace === 0 && modelDomain.includes('.wikipedia.org')) {
+        // if (wiki === "wikidatawiki") return "revertrisk-wikidata";
+        if (lwListModels.includes(modelWiki.slice(0, -4))) return "revertrisk-multilingual" + "|" + "" + "|" + "LW";
+        else return "revertrisk-language-agnostic" + "|" + "" + "|" + "LW";;
+    } else {
+        if (!modelWiki.includes('.wikipedia.org') && !modelDomain.includes('wikidata.org')) modelName = modelWiki + 'wiki'; else modelName = modelWiki;
+        if (oresListModels.damaging.includes(modelWiki)) return modelName + "-damaging" + "|" + modelName + "|" + "ORES";
+        else if (oresListModels.reverted.includes(modelWiki)) return modelName + "-reverted" + "|" + modelName + "|" + "ORES";
+        else return false;
+    }
 }
 
-async function getORES(wiki, new_id, model) {
+async function getLWScores(wiki, new_id, lwNamespace, lwDomain) {
     return new Promise(resolve => {
-        if (model === false) { resolve(false); return; }
-        request("https://ores.wikimedia.org/v3/scores/" + String(wiki) + "/" + String(new_id) + "/" + String(model), {
-            json: true, headers: {"User-Agent": userAgent}
-        }, (err, res) => {
-            if (err) { resolve(false); return; }
-            if (res.body.hasOwnProperty("error")) { resolve(false); return; }
-            if (res.body[wiki] === undefined) { resolve(false); return; }
-            if (!res.body[wiki].hasOwnProperty("scores")) { resolve(false); return; }
-            if (res.body[wiki].scores[new_id] === undefined) { resolve(false); return; }
-            if (res.body[wiki].scores[new_id][model] === undefined) { resolve(false); return; }
-            if (res.body[wiki].scores[new_id][model].error !== undefined) { resolve(false); return; }
-            if (res.body[wiki].scores[new_id][model].score === undefined) { resolve(false); return; }
-            const damage = parseFloat(res.body[wiki].scores[new_id][model].score.probability.true) * 100;
-            const damagePer = parseInt(damage.toString());
-            resolve({score: damagePer, color: `hsl(0, ${damagePer}%, 56%)`});
-        });
+        let modelInfo = getModel(ORESList, LWList, wiki, lwNamespace, lwDomain);
+        if (modelInfo === false) { resolve(false); return; }
+        modelInfo = modelInfo.split("|");
+        let model = modelInfo[0]; const modelName = modelInfo[1]; const modelType = modelInfo[2];
+        const lwURL = 'https://api.wikimedia.org/service/lw/inference/v1/models/' + model + ':predict';
+        try {
+            lwPerHourPrepare++;
+            request.post({
+                headers: {"User-Agent": "userAgent", "Authorization": "Bearer " + bearerToken},
+                url: lwURL, timeout: 5000, body: {"lang": wiki.slice(0, -4), "rev_id": new_id}, json: true
+            }, (err, res) => {
+                if (err) { resolve(false); return; }
+                if (res.body.hasOwnProperty("error")) { resolve(false); return; }
+                let damage;
+                if (modelType === "LW") {
+                    if (!res.body.hasOwnProperty("output")) { resolve(false); return; }
+                    if (!res.body.output.hasOwnProperty("probabilities")) { resolve(false); return; }
+                    damage = parseFloat(res.body.output.probabilities.true) * 100;
+                } else {  // ex-ORES
+                    if (res.body[modelName] === undefined) { resolve(false); return; }
+                    if (!res.body[modelName].hasOwnProperty("scores")) { resolve(false); return; }
+                    if (res.body[modelName].scores[new_id] === undefined) { resolve(false); return; }
+                    model = model.replace(modelName + '-', '');
+                    if (res.body[modelName].scores[new_id][model] === undefined) { resolve(false); return; }
+                    if (res.body[modelName].scores[new_id][model].error !== undefined) { resolve(false); return; }
+                    if (res.body[modelName].scores[new_id][model].score === undefined) { resolve(false); return; }
+                    damage = parseFloat(res.body[modelName].scores[new_id][model].score.probability.true) * 100;
+                }
+                const damagePer = parseInt(damage.toString());
+                resolve({score: damagePer, color: `hsl(0, ${damagePer}%, 56%)`});
+            });
+        } catch { logger.debug("getLW promise error [2]."); resolve(false); }
     }).catch(function(err) {
-        logger.debug("getORES promise error: " + err);
+        logger.debug("getLW promise error [2]: " + err);
+        resolve(false);
     });
 }
 
@@ -677,7 +696,12 @@ setInterval(function() {
 setInterval(function() {
     eventPerMin = eventPerMinPrepare;
     eventPerMinPrepare = 0;
-}, 60000);
+}, 60000);  // 1 min
+
+setInterval(function() {
+    lwPerHour = lwPerHourPrepare;
+    lwPerHourPrepare = 0;
+}, 60000*60);  // 1 h
 
 function streamCheck() {
     if (wss.clients.size !== 0 && typeof source !== "undefined" && source.readyState === 2) {
