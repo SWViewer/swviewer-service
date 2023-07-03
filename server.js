@@ -31,6 +31,7 @@ var compiled = ejs.compile(content);
 const swmt = exp.swmt;
 const lt300 = exp.lt300;
 const LWList = exp.LWList;
+const admins = exp.admins;
 const ORESList = exp.ORESList;
 const groupFilt = exp.groupFilt;
 const userAgent = exp.userAgent;
@@ -60,7 +61,6 @@ var checkStreamOne = moment().unix();
 var checkStreamTwo = moment().unix();
 var checkWS = moment().unix();
 const port = +(process.env.PORT || 9030);
-const admins = ["Iluvatar", "Ajbura", "1997kB"];
 
 // The Talk / Websocket
 
@@ -330,7 +330,7 @@ function SSEStart() {
                     if (res === undefined) res = null;
                     result.wikidata_title = res;
                     eventPerMinPrepare++;
-                    getLWScores(result.wiki, result.new_id, result.namespace, result.domain, result.is_new).then(function(res) {
+                    getLWScores(result.wiki, result.new_id, result.namespace, result.domain, result.user_is_anon, result.is_new).then(function(res) {
                         if (res === undefined || res === false) res = null;
                         result.ORES = res;
                         wss.clients.forEach(function (ws) {
@@ -360,10 +360,10 @@ function SSEStart() {
     };
 }
 
-function getModel(oresListModels, lwListModels, modelWiki, modelNamespace, modelDomain) {
+function getModel(oresListModels, lwListModels, modelWiki, modelNamespace, lwIsAnon, modelDomain) {
     if (modelNamespace === 0 && modelDomain.includes('.wikipedia.org')) {
         // if (wiki === "wikidatawiki") return "revertrisk-wikidata";
-        if (lwListModels.includes(modelWiki.slice(0, -4))) return "revertrisk-multilingual" + "|" + "" + "|" + "LW";
+        if (lwListModels.includes(modelWiki.slice(0, -4) && lwIsAnon)) return "revertrisk-multilingual" + "|" + "" + "|" + "LW";
         else if (LWListAgnostic.includes(modelWiki.slice(0, -4))) return "revertrisk-language-agnostic" + "|" + "" + "|" + "LW";
         else return false;
     } else {
@@ -375,11 +375,11 @@ function getModel(oresListModels, lwListModels, modelWiki, modelNamespace, model
     }
 }
 
-async function getLWScores(wiki, new_id, lwNamespace, lwDomain, lwIsNew) {
+async function getLWScores(wiki, new_id, lwNamespace, lwDomain, lwIsAnon, lwIsNew) {
     wiki = wiki.replace('_', '-');
     return new Promise(resolve => {
         if (lwIsNew) { resolve(false); return; }
-        let modelInfo = getModel(ORESList, LWList, wiki, lwNamespace, lwDomain);
+        let modelInfo = getModel(ORESList, LWList, wiki, lwNamespace, lwIsAnon, lwDomain);
         if (modelInfo === false) { resolve(false); return; }
         modelInfo = modelInfo.split("|");
         let model = modelInfo[0]; const modelName = modelInfo[1]; const modelType = modelInfo[2];
@@ -391,25 +391,61 @@ async function getLWScores(wiki, new_id, lwNamespace, lwDomain, lwIsNew) {
                 headers: {"User-Agent": "userAgent", "Authorization": "Bearer " + bearerToken},
                 url: lwURL, timeout: 60000, body: lwBody, json: true
             }, (err, res) => {
-                if (err) { resolve(false); return; }
+                if (err) {
+                    logger.debug(err);
+                    logger.debug("err", model, wiki, new_id, lwNamespace);
+                    resolve(false); return;
+                }
                 if (res.body.hasOwnProperty("error")) {
                     logger.debug(res.body);
-                    logger.debug(model, wiki, new_id, lwNamespace);
+                    logger.debug("body err", model, wiki, new_id, lwNamespace);
                     resolve(false); return;
                 }
                 let damage;
                 if (modelType === "LW") {
-                    if (!res.body.hasOwnProperty("output")) { resolve(false); return; }
-                    if (!res.body.output.hasOwnProperty("probabilities")) { resolve(false); return; }
+                    if (!res.body.hasOwnProperty("output")) {
+                        logger.debug(res.body);
+                        logger.debug("res.body.output", model, wiki, new_id, lwNamespace);
+                        resolve(false); return;
+                    }
+                    if (!res.body.output.hasOwnProperty("probabilities")) {
+                        logger.debug(res.body.output);
+                        logger.debug("res.body.output", model, wiki, new_id, lwNamespace);
+                        resolve(false); return;
+                    }
                     damage = parseFloat(res.body.output.probabilities.true) * 100;
                 } else {  // ex-ORES
-                    if (res.body[modelName] === undefined) { resolve(false); return; }
-                    if (!res.body[modelName].hasOwnProperty("scores")) { resolve(false); return; }
-                    if (res.body[modelName].scores[new_id] === undefined) { resolve(false); return; }
+                    if (res.body[modelName] === undefined) {
+                        logger.debug(res.body);
+                        logger.debug("res.body.modelName", model, wiki, new_id, lwNamespace);
+                        resolve(false); return;
+                    }
+                    if (!res.body[modelName].hasOwnProperty("scores")) {
+                        logger.debug(res.body[modelName]);
+                        logger.debug("res.body.modelName.scores", model, wiki, new_id, lwNamespace);
+                        resolve(false); return;
+                    }
+                    if (res.body[modelName].scores[new_id] === undefined) {
+                        logger.debug(res.body[modelName].scores);
+                        logger.debug("res.body.modelName.new_id", model, wiki, new_id, lwNamespace);
+                        resolve(false); return;
+                    }
                     model = model.replace(modelName + '-', '');
-                    if (res.body[modelName].scores[new_id][model] === undefined) { resolve(false); return; }
-                    if (res.body[modelName].scores[new_id][model].error !== undefined) { resolve(false); return; }
-                    if (res.body[modelName].scores[new_id][model].score === undefined) { resolve(false); return; }
+                    if (res.body[modelName].scores[new_id][model] === undefined) {
+                        logger.debug(res.body[modelName].scores[new_id]);
+                        logger.debug("res.body[modelName].scores[new_id][model]", model, wiki, new_id, lwNamespace);
+                        resolve(false); return;
+                    }
+                    if (res.body[modelName].scores[new_id][model].error !== undefined) {
+                        logger.debug(res.body[modelName].scores[new_id][model]);
+                        logger.debug("res.body[modelName].scores[new_id][model].error", model, wiki, new_id, lwNamespace);
+                        resolve(false); return;
+                    }
+                    if (res.body[modelName].scores[new_id][model].score === undefined) {
+                        logger.debug(res.body[modelName].scores[new_id][model]);
+                        logger.debug("res.body[modelName].scores[new_id][model].score", model, wiki, new_id, lwNamespace);
+                        resolve(false); return;
+                    }
                     damage = parseFloat(res.body[modelName].scores[new_id][model].score.probability.true) * 100;
                 }
                 const damagePer = parseInt(damage.toString());
