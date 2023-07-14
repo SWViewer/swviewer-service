@@ -60,7 +60,7 @@ var upTimeSSE = moment().unix();
 var checkStreamOne = moment().unix();
 var checkStreamTwo = moment().unix();
 var checkWS = moment().unix();
-const port = +(process.env.PORT || 9030);
+const port = process.env.PORT || 9030;
 
 // The Talk / Websocket
 
