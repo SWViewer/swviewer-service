@@ -330,7 +330,7 @@ function SSEStart() {
                     if (res === undefined) res = null;
                     result.wikidata_title = res;
                     eventPerMinPrepare++;
-                    getLWScores(result.wiki, result.new_id, result.namespace, result.domain, result.user_is_anon, result.is_new).then(function(res) {
+                    getLWScores(result.wiki, result.new_id, result.namespace, result.domain, result.performer.user_is_anon, result.is_new).then(function(res) {
                         if (res === undefined || res === false) res = null;
                         result.ORES = res;
                         wss.clients.forEach(function (ws) {
