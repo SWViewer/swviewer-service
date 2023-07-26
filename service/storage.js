@@ -73,5 +73,5 @@ exports.ORESList = {
     'reverted': ['enwiktionary', 'bnwiki', 'elwiki', 'glwiki', 'hrwiki', 'idwiki', 'iswiki', 'tawiki', 'viwiki']
 };
 exports.namespaces = ["<font color='green'>Main</font>", "<font color='tomato'>Talk</font>", "<font color='tomato'>User</font>", "<font color='tomato'>User talk</font>", "<font color='orange'>Project</font>", "<font color='tomato'>Project talk</font>", "<font color='orange'>File</font>", "<font color='tomato'>File talk</font>", "<font color='tomato'>MediaWiki</font>", "<font color='tomato'>MediaWiki talk</font>", "<font color='orange'>Template</font>", "<font color='tomato'>Template talk</font>", "<font color='orange'>Help</font>", "<font color='tomato'>Help talk</font>", "<font color='orange'>Category</font>", "<font color='tomato'>Category talk</font>"];
-exports.userAgent = "SWViewer/1.4+; swviewer@tools.wmflabs.org; SSE-proxy, TheTalk; NodeJS: request";
+exports.userAgent = "SWViewer/1.4+; swviewer@tools.wmflabs.org; SSE-proxy/TheTalk module; NodeJS: request";
 exports.admins = ["Iluvatar", "Ajbura", "1997kB"];
