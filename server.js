@@ -363,8 +363,9 @@ function SSEStart() {
 function getModel(oresListModels, lwListModels, modelWiki, modelNamespace, lwIsAnon, modelDomain) {
     if (modelNamespace === 0 && modelDomain.includes('.wikipedia.org')) {
         // if (wiki === "wikidatawiki") return "revertrisk-wikidata";
-        if (lwListModels.includes(modelWiki.slice(0, -4)) && lwIsAnon) return "revertrisk-multilingual" + "|" + "" + "|" + "LW";
-        else if (LWListAgnostic.includes(modelWiki.slice(0, -4))) return "revertrisk-language-agnostic" + "|" + "" + "|" + "LW";
+        // if (lwListModels.includes(modelWiki.slice(0, -4)) && lwIsAnon) return "revertrisk-multilingual" + "|" + "" + "|" + "LW";
+        // else
+        if (LWListAgnostic.includes(modelWiki.slice(0, -4))) return "revertrisk-language-agnostic" + "|" + "" + "|" + "LW";
         else return false;
     } else {
         let modelName = modelWiki;
