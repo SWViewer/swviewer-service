@@ -388,7 +388,7 @@ async function getLWScores(wiki, new_id, lwNamespace, lwDomain, lwIsAnon, lwIsNe
         try {
             lwPerHourPrepare++;
             request.post({
-                headers: {"User-Agent": "userAgent", "Authorization": "Bearer " + bearerToken},
+                headers: {"User-Agent": userAgent, "Authorization": "Bearer " + bearerToken},
                 url: lwURL, timeout: 60000, body: lwBody, json: true
             }, (err, res) => {
                 if (err) {
