@@ -301,7 +301,7 @@ function getSandboxes() {
 function getGlobals() {
     request('https://swviewer.toolforge.org/php/getGlobals.php?token_proxy=' + token, { json: false, headers: { "User-Agent": userAgent } }, (err, res) => {
         if (err) return false;
-        globals = res.body.slice(0, -1).split(",");
+        globals = JSON.parse(res.body)["users"];
     });
 }
 
