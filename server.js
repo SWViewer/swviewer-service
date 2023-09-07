@@ -369,7 +369,6 @@ function getModel(oresListModels, lwListModels, modelWiki, modelNamespace, lwIsA
         else return false;
     } else {
         let modelName = modelWiki;
-        if (!modelDomain.includes('.wikipedia.org') && !modelDomain.includes('wikidata.org')) modelName = modelWiki + 'wiki';
         if (oresListModels.damaging.includes(modelWiki)) return modelName + "-damaging" + "|" + modelName + "|" + "ORES";
         else if (oresListModels.reverted.includes(modelWiki)) return modelName + "-reverted" + "|" + modelName + "|" + "ORES";
         else return false;
