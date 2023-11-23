@@ -313,6 +313,7 @@ function SSEStart() {
             if (e.type !== "message") return;
             e = JSON.parse(e.data);
             checkStreamWork(e);
+            if (e.meta.domain === "canary") return;
             if (!streamFilter(e)) return;
             e.time = Date.now();
             const uniqWiki = (e.hasOwnProperty("wiki")) ? e.wiki : e.database;
