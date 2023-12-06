@@ -37,6 +37,7 @@ const groupFilt = exp.groupFilt;
 const userAgent = exp.userAgent;
 const namespaces = exp.namespaces;
 const siteGroups = exp.siteGroups;
+const flaggedRevs = exp.flaggedRevs;
 const LWListAgnostic = exp.LWListAgnostic;
 const customSandBoxes = exp.customSandBoxes;
 
@@ -327,24 +328,29 @@ function SSEStart() {
             checkCVN(result.performer.user_text, result.performer.user_is_anon).then(function(res) {
                 if (res === undefined) res = true;
                 if (res === false) { delete storage[uniqID]; return false; }
-                getWikidataTitle(result).then(function(res) {
-                    if (res === undefined) res = null;
-                    result.wikidata_title = res;
-                    eventPerMinPrepare++;
-                    getLWScores(result.wiki, result.new_id, result.namespace, result.domain, result.performer.user_is_anon, result.is_new).then(function(res) {
-                        if (res === undefined || res === false) res = null;
-                        result.ORES = res;
-                        wss.clients.forEach(function (ws) {
-                            if (ws.readyState === WebSocket.OPEN && ws.pause !== true && ws.hasOwnProperty("filt"))
-                                customFilter(result, ws.filt, ws.nickName, ws.timeConnected).then(function(res) {
-                                    if (res !== undefined && res !== null && res) {
-                                        checkWS = moment().unix();
-                                        ws.send(JSON.stringify({"type": "edit", "data": result}));
-                                    }
-                                });
+                checkFlaggedRevs(result.wiki, result.domain, result.id, result.namespace).then(function(res) {
+                    result.flaggedRevs = (res === undefined) ? false : res;
+                    getWikidataTitle(result).then(function(res) {
+                        if (res === undefined) res = null;
+                        result.wikidata_title = res;
+                        eventPerMinPrepare++;
+                        getLWScores(result.wiki, result.new_id, result.namespace, result.domain, result.performer.user_is_anon, result.is_new).then(function(res) {
+                            if (res === undefined || res === false) res = null;
+                            result.ORES = res;
+                            wss.clients.forEach(function (ws) {
+                                if (ws.readyState === WebSocket.OPEN && ws.pause !== true && ws.hasOwnProperty("filt")) {
+                                    customFilter(result, ws.filt, ws.nickName, ws.timeConnected).then(function(res) {
+                                        if (res !== undefined && res !== null && res) {
+                                            res.flaggedRevs = (!ws.filt.flaggedRevs.split(',').includes(res.wiki)) ? false : res.flaggedRevs;
+                                            checkWS = moment().unix();
+                                            ws.send(JSON.stringify({"type": "edit", "data": res}));
+                                        }
+                                    });
+                                }
+                            });
                         });
+                        delete storage[uniqID];
                     });
-                    delete storage[uniqID];
                 });
             });
         } catch(err) {
@@ -516,12 +522,13 @@ function customFilter(e, filter, nick, timeConnected) {
         }
         if (typeof sandboxlist[e.wiki] !== "undefined" && sandboxlist[e.wiki].split(',').includes(e.title)) { resolve(false); return; }
         if (e.ORES !== null && filter.ores !== 0 && filter.ores > e.ORES.score) { resolve(false); return; }
-        resolve((filter.wikis.split(',').includes(e.wiki)) ||
+
+        if ((filter.wikis.split(',').includes(e.wiki)) ||
             (filter.local_wikis.split(',').includes(e.wiki) && filter.isGlobal === false) ||
             (swmt.includes(e.wiki) && filter.swmt === 1 && (filter.isGlobal === true || filter.isGlobalModeAccess === true)) ||
             (filter.langWikis.includes(e.wiki) && (filter.isGlobal === true || filter.isGlobalModeAccess === true)) ||
-            (lt300.includes(e.wiki) && filter.lt300 === 1 && (filter.isGlobal === true || filter.isGlobalModeAccess === true)));
-
+            (lt300.includes(e.wiki) && filter.lt300 === 1 && (filter.isGlobal === true || filter.isGlobalModeAccess === true))) resolve(e);
+        else resolve(false);
     }).catch(function(err) {
         logger.debug("customFilter promise error: " + err);
         logger.debug("customFilter promise error (nickname): " + nick);
@@ -566,6 +573,23 @@ function getWikidataTitle (e) {
     });
 }
 
+function checkFlaggedRevs(wiki, domain, page_id, namespace) {
+    return new Promise(resolve => {
+        if (flaggedRevs[wiki] !== undefined && flaggedRevs[wiki].includes(namespace)) {
+            domain = "https://" + domain + "/w/api.php?action=query&prop=flagged&pageids=" + page_id + "&utf8=1&format=json";
+            request(domain, { json: true, headers: { "User-Agent": userAgent } }, (err, res) => {
+                if (err) { resolve(false); return; }
+                if (res.body.hasOwnProperty("query") && res.body.query.hasOwnProperty("pages") && res.body.query.pages.hasOwnProperty(page_id) &&
+                    res.body.query.pages[page_id].hasOwnProperty("flagged") && res.body.query.pages[page_id].flagged.hasOwnProperty("stable_revid"))
+                    resolve(res.body.query.pages[page_id].flagged.stable_revid);
+                else resolve(false);
+            });
+        } else resolve(false);
+    }).catch(function(err) {
+        logger.debug("checkFlaggedRevs promise error: " + err);
+    });
+}
+
 function normalizeArray(e) {
     let normArray = {
         "wiki": "", "domain": "", "uri": "", "title": "", "wikidata_title": null, "id": "", "namespace": "",
@@ -575,7 +599,7 @@ function normalizeArray(e) {
     normArray.wiki = (e.hasOwnProperty("database")) ? e.database : e.wiki;
     normArray.domain = e.meta.domain;
     normArray.uri = e.meta.uri;
-    normArray.id = (e.hasOwnProperty("page_id")) ? e.page_id : e.id;
+    normArray.id = (e.hasOwnProperty("page_id")) ? e.page_id : normArray.id;
     normArray.title = (e.hasOwnProperty("page_title")) ? e.page_title : e.title;
     normArray.namespace = (e.hasOwnProperty("page_namespace")) ? e.page_namespace : e.namespace;
     normArray.new_id = (e.hasOwnProperty("rev_id")) ? e.rev_id : e.revision.new;
@@ -636,6 +660,7 @@ function getParams(w) {
             filter.wikiwhitelist = (res.body.wlprojects !== null) ? res.body.wlprojects : "";
             filter.userwhitelist = (res.body.wlusers !== null) ? res.body.wlusers : "";
             filter.wikis = (res.body.blprojects !== null) ? res.body.blprojects : "";
+            filter.flaggedRevs = (res.body.flaggedRevs !== null) ? res.body.flaggedRevs : "";
             filter.local_wikis = (res.body.local_wikis !== null) ? res.body.local_wikis : "";
             filter.isGlobalModeAccess = (parseInt(res.body.isGlobalModeAccess) === 1);
             filter.isGlobal = (parseInt(res.body.isGlobal) === 1);
