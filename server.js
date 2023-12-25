@@ -241,7 +241,7 @@ wss.on('connection', function(ws, req) {
                     client.send(JSON.stringify({"type": "disconnected", "clients": getUsersList(), "client": ws.nickName}));
             });
             getGeneralList();
-            if (wss.clients.size === 0) { logger.debug("Stream closed (1)"); CheckClients(); logger.debug("*****"); if (typeof source !== "undefined") source.close(); }
+            if (wss.clients.size === 0) { logger.debug("Stream closed (1)"); logger.debug("*****"); if (typeof source !== "undefined") source.close(); }
         });
     }).catch(function(e) {
         logger.debug("getParams promise error");
@@ -800,8 +800,3 @@ function checkStreamWork(e) {
     if (e.hasOwnProperty("database") && e.database === "enwiki")
         checkStreamTwo = moment().unix();
 }
-
-function CheckClients() {
-    logger.debug("Clients: " + wss.clients.size + "; generalList: " + generalList.length)
-}
-setInterval(CheckClients, 30000);
