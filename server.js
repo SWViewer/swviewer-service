@@ -241,7 +241,7 @@ wss.on('connection', function(ws, req) {
                     client.send(JSON.stringify({"type": "disconnected", "clients": getUsersList(), "client": ws.nickName}));
             });
             getGeneralList();
-            if (wss.clients.size === 0) { logger.debug("Stream closed (1)"); if (typeof source !== "undefined") source.close(); }
+            if (wss.clients.size === 0) { logger.debug("Stream closed (1)"); logger.debug("*****"); if (typeof source !== "undefined") source.close(); }
         });
     }).catch(function(e) {
         logger.debug("getParams promise error");
@@ -490,6 +490,7 @@ function mergeList(arr1, arr2, arr3 = null) {
 
 function streamFilter(e) {
     if ((e.hasOwnProperty("wiki") && !generalList.includes(e.wiki)) || (e.hasOwnProperty("database") && !generalList.includes(e.database))) return false; // general wiki list
+    if (!e.hasOwnProperty("performer") && !e.hasOwnProperty("user")) return false; // quick fix, see T241178
     if (e.meta.stream === "mediawiki.revision-create" && (e.page_namespace === 6 && !e.hasOwnProperty("rev_parent_id"))) return false; // upload files
     if (e.meta.stream === "mediawiki.revision-create" && e.database === "wikidatawiki" && e.is_redirect === true) return false; // redirects on wikidata
     if (e.meta.stream === "mediawiki.recentchange" && (e.type !== "edit" && e.type !== "new")) return false; // cats, uploads, logs
@@ -578,7 +579,7 @@ function checkFlaggedRevs(wiki, domain, page_id, namespace) {
         if (flaggedRevs[wiki] !== undefined && flaggedRevs[wiki].includes(namespace)) {
             domain = "https://" + domain + "/w/api.php?action=query&prop=flagged&pageids=" + page_id + "&utf8=1&format=json";
             request(domain, { json: true, headers: { "User-Agent": userAgent } }, (err, res) => {
-                if (err) { resolve(false); return; }
+                if (err) { logger.debug("checkFlaggedRevs promise error: " + err); resolve(false); return; }
                 if (res.body.hasOwnProperty("query") && res.body.query.hasOwnProperty("pages") && res.body.query.pages.hasOwnProperty(page_id) &&
                     res.body.query.pages[page_id].hasOwnProperty("flagged") && res.body.query.pages[page_id].flagged.hasOwnProperty("stable_revid"))
                     resolve(res.body.query.pages[page_id].flagged.stable_revid);
