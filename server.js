@@ -490,7 +490,8 @@ function mergeList(arr1, arr2, arr3 = null) {
 
 function streamFilter(e) {
     if ((e.hasOwnProperty("wiki") && !generalList.includes(e.wiki)) || (e.hasOwnProperty("database") && !generalList.includes(e.database))) return false; // general wiki list
-    if ((e.meta.stream === "mediawiki.revision-create" && !e.hasOwnProperty("performer")) || (e.meta.stream === "mediawiki.recentchange" && !e.hasOwnProperty("user"))) return false; // quick fix, see T241178
+    if (e.meta.stream === "mediawiki.revision-create" && !e.hasOwnProperty("performer")) return false; // quick fix, see T241178
+    if ((e.meta.stream === "mediawiki.revision-create" && !e.performer.hasOwnProperty("user_text")) || (e.meta.stream === "mediawiki.recentchange" && !e.hasOwnProperty("user"))) return false; // quick fix, see T241178
     if (e.meta.stream === "mediawiki.revision-create" && (e.page_namespace === 6 && !e.hasOwnProperty("rev_parent_id"))) return false; // upload files
     if (e.meta.stream === "mediawiki.revision-create" && e.database === "wikidatawiki" && e.is_redirect === true) return false; // redirects on wikidata
     if (e.meta.stream === "mediawiki.recentchange" && (e.type !== "edit" && e.type !== "new")) return false; // cats, uploads, logs
